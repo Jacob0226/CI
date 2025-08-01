@@ -2,7 +2,7 @@
 # set -x
 
 # Sample cmd:
-# ./main.sh --model-dir /data/huggingface/hub
+# ./main.sh --model-dir ~/data/huggingface/hub
 
 # 1. Check models
 model_dir=/data/huggingface/hub
@@ -25,16 +25,45 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-echo "model_dir=$model_dir"
+echo "Set model_dir=$model_dir"
 models=(
     "meta-llama/Llama-3.1-8B-Instruct"
     "meta-llama/Llama-3.3-70B-Instruct"
     "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 )
 
+
+# Check if model exists
+huggingface-cli login --token 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
+EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
+download_pids=()
+for model_name in "${models[@]}"; do
+    model_path="${model_dir}/${model_name}"
+    if [ ! -d "$model_path" ]; then
+        echo "Model not found: $model_path. Downloading..."
+        huggingface-cli download "$model_name" \
+            --local-dir "$model_path" \
+            --resume-download \
+            --exclude "$EXCLUDE_PATTERN"  &
+        download_pids+=($!)
+    else
+        echo "Model already exists: $model_path. Skipping download."
+    fi
+done
+
+# Wait for download
+if [ ${#download_pids[@]} -gt 0 ]; then
+    echo "Waiting for all background downloads to complete..."
+    wait "${download_pids[@]}"
+fi
+echo "All models are ready."
+
+
 # 2. Setup
-# 2.1 Fetch latest vLLM image with 'rc' sub-string
-# 2.2 Fetch latest SGLang image with
+# 2.1 Fetch latest ROCm vLLM image with 'rc' sub-string
+python3 GetLatestVllmDocker.py 
+# 2.2 Fetch latest ROCm SGLang image with 'mi30x' and 'srt' sub-string
+python3 GetLatestSGLangDocker.py 
 
 
 # 2. vLLM benchmark
