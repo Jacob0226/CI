@@ -35,10 +35,15 @@ def get_latest_rc_tag():
 
 if __name__ == "__main__":
     latest_rc = get_latest_rc_tag()
-    print(f"Latest 'rc' tag: {latest_rc}")
-
-       # Construct and run the docker pull command
-    GREEN = "\033[32m"
-    RESET = "\033[0m"
-    print(f"{GREEN}Pulling ROCm vLLM image: {DOCKER_REPO}:{latest_rc}{RESET}")
-    subprocess.run(["docker", "pull", f"{DOCKER_REPO}:{latest_rc}"], check=True)
+    
+    try:
+        # run the docker pull command
+        subprocess.run(["docker", "pull", f"{DOCKER_REPO}:{latest_rc}"], check=True)
+        print(f"{DOCKER_REPO}:{latest_rc}")
+    except subprocess.CalledProcessError as e:
+        print(f"Docker pull failed with error code {e.returncode}:", file=sys.stderr)
+        print(e.stderr, file=sys.stderr)
+        sys.exit(1)
+    
+    
+    

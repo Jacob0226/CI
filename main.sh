@@ -1,11 +1,12 @@
 #!/bin/bash
-# set -x
+set -x
 
 # Sample cmd:
-# ./main.sh --model-dir ~/data/huggingface/hub
+# ./main.sh --model-dir $HOME/data/huggingface/hub
 
-# 1. Check models
-model_dir=/data/huggingface/hub
+# 1. Download models
+ci_dir=$(pwd)
+model_dir=$HOME/data/huggingface/hub
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --model-dir)
@@ -61,21 +62,45 @@ echo "All models are ready."
 
 # 2. Setup
 # 2.1 Fetch latest ROCm vLLM image with 'rc' sub-string
-python3 GetLatestVllmDocker.py 
+latest_vLLM_docker=$(python3 GetLatestVllmDocker.py | tail -n 1)
+echo "Latest vLLM docker=$latest_vLLM_docker"
 # 2.2 Fetch latest ROCm SGLang image with 'mi30x' and 'srt' sub-string
-python3 GetLatestSGLangDocker.py 
+latest_SGLang_docker=$(python3 GetLatestSGLangDocker.py | tail -n 1)
+echo "Latest SGLang docker=$latest_SGLang_docker"
+
+run_benchmark_container() {
+    local container_name="$1"
+    local docker_image="$2"
+
+    echo "Starting benchmark container: ${container_name} with image ${docker_image}"
+
+    docker run -t -d --rm --privileged \
+        --name="${container_name}" \
+        --network=host \
+        --device=/dev/kfd \
+        --device=/dev/dri \
+        --group-add video \
+        --cap-add=SYS_PTRACE \
+        --security-opt seccomp=unconfined \
+        --ipc=host \
+        --shm-size=32g \
+        -v "$model_dir":/data/ \
+        -w "$ci_dir" \
+        "$docker_image"
+}
 
 
-# 2. vLLM benchmark
-# 2.1 Accuracy Test
-# 2.2 Performance Test
-# 2.2.1 Old Configuration (no Ray)
-# 2.2.2 New Configuration (Ray)
-# 2.2.3 Long Context (Ray)
-
-
-# 3. SGLang benchmark
+# 3. vLLM benchmark
+vllm_container_id=$(run_benchmark_container "CI_vLLM" "$latest_vLLM_docker")
 # 3.1 Accuracy Test
 # 3.2 Performance Test
+# 3.2.1 Old Configuration (no Ray)
+# 3.2.2 New Configuration (Ray)
+# 3.2.3 Long Context (Ray)
 
-# 4. Visualization
+# 4. SGLang benchmark
+sglang_container_id=$(run_benchmark_container "CI_SGLang" "$latest_SGLang_docker")
+# 4.1 Accuracy Test
+# 4.2 Performance Test
+
+# 5. Visualization

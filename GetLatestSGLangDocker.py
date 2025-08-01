@@ -42,16 +42,11 @@ def get_latest_mi30x_srt_tag():
 
 if __name__ == "__main__":
     latest_tag = get_latest_mi30x_srt_tag()
-    print(f"Latest 'mi30x' + 'srt' tag: {latest_tag}")
-    
-    # Construct and run the docker pull command
-    GREEN = "\033[32m"
-    RESET = "\033[0m"
     full_image_name = f"{DOCKER_REPO}:{latest_tag}"
-    print(f"{GREEN}Pulling ROCm SGLang image: {full_image_name}{RESET}")
-    
+
     try:
         subprocess.run(["docker", "pull", full_image_name], check=True, capture_output=True, text=True)
+        print(f"{full_image_name}")
     except subprocess.CalledProcessError as e:
         print(f"Docker pull failed with error code {e.returncode}:", file=sys.stderr)
         print(e.stderr, file=sys.stderr)
