@@ -4,6 +4,7 @@ set -x
 # Sample cmd:
 # ./main.sh --model-dir $HOME/data/huggingface/hub
 
+
 # 1. Download models
 ci_dir=$(pwd)
 model_dir=$HOME/data/huggingface/hub
@@ -29,8 +30,8 @@ done
 echo "Set model_dir=$model_dir"
 models=(
     "meta-llama/Llama-3.1-8B-Instruct"
-    "meta-llama/Llama-3.3-70B-Instruct"
-    "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+    # "meta-llama/Llama-3.3-70B-Instruct"
+    # "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 )
 
 
@@ -63,7 +64,9 @@ echo "All models are ready."
 # 2. Setup
 # 2.1 Fetch latest ROCm vLLM image with 'rc' sub-string
 latest_vLLM_docker=$(python3 GetLatestVllmDocker.py | tail -n 1)
+latest_vLLM_docker="rocm/vllm-dev:nightly_main_20250804"
 echo "Latest vLLM docker=$latest_vLLM_docker"
+
 # 2.2 Fetch latest ROCm SGLang image with 'mi30x' and 'srt' sub-string
 latest_SGLang_docker=$(python3 GetLatestSGLangDocker.py | tail -n 1)
 echo "Latest SGLang docker=$latest_SGLang_docker"
@@ -84,7 +87,7 @@ run_benchmark_container() {
         --security-opt seccomp=unconfined \
         --ipc=host \
         --shm-size=32g \
-        -v "$model_dir":/data/ \
+        -v "$model_dir":/data/huggingface/hub \
         -w "$ci_dir" \
         "$docker_image"
 }
@@ -92,7 +95,36 @@ run_benchmark_container() {
 
 # 3. vLLM benchmark
 vllm_container_id=$(run_benchmark_container "CI_vLLM" "$latest_vLLM_docker")
-# 3.1 Accuracy Test
+docker exec "CI_vLLM" bash -c "pip install gradio plotly evalscope"
+for model_name in "${models[@]}"; do
+    # 3.1 Accuracy Test-evalscope
+    model_path="/data/huggingface/hub/${model_name}"
+    docker exec -d "CI_vLLM" bash -c "vllm serve $model_path --max_model_len 8192"
+    docker logs -f CI_vLLM &
+    log_pid=$!
+
+    wait_time=0
+    until curl -s http://localhost:8000/v1/models | grep -q '"object"'; do
+        echo "Waiting for the vLLM server to start...$wait_time sec"
+        sleep 5
+        wait_time=$((wait_time + 5))
+    done
+    kill $log_pid
+    output=$(docker exec "CI_vLLM" bash -c \
+        "evalscope eval \
+            --model $model_path  \
+            --api-url http://localhost:8000/v1 \
+            --api-key EMPTY \
+            --eval-type service \
+            --datasets gsm8k \
+            --limit 10 2>&1")
+    report_path=$(echo "$output" | grep "Dump report to:" | awk '{print $NF}')
+    echo "The report file is located at: $report_path"
+    docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
+    echo "------------------------------------------------------------------------"
+done
+
+
 # 3.2 Performance Test
 # 3.2.1 Old Configuration (no Ray)
 # 3.2.2 New Configuration (Ray)
@@ -104,3 +136,7 @@ sglang_container_id=$(run_benchmark_container "CI_SGLang" "$latest_SGLang_docker
 # 4.2 Performance Test
 
 # 5. Visualization
+
+
+
+docker stop CI_vLLM CI_SGLang
