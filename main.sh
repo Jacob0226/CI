@@ -66,10 +66,11 @@ echo "All models are ready."
 latest_vLLM_docker=$(python3 GetLatestVllmDocker.py | tail -n 1)
 latest_vLLM_docker="rocm/vllm-dev:nightly_main_20250804"
 echo "Latest vLLM docker=$latest_vLLM_docker"
-
 # 2.2 Fetch latest ROCm SGLang image with 'mi30x' and 'srt' sub-string
 latest_SGLang_docker=$(python3 GetLatestSGLangDocker.py | tail -n 1)
 echo "Latest SGLang docker=$latest_SGLang_docker"
+# ToDo: Record docker images to a list. Check if the images are already in the list, if so, skip benchmark.
+
 
 run_benchmark_container() {
     local container_name="$1"
@@ -87,8 +88,9 @@ run_benchmark_container() {
         --security-opt seccomp=unconfined \
         --ipc=host \
         --shm-size=32g \
-        -v "$model_dir":/data/huggingface/hub \
-        -w "$ci_dir" \
+        -v $model_dir:/data/huggingface/hub \
+        -v $ci_dir:$ci_dir \
+        -w $ci_dir \
         "$docker_image"
 }
 
@@ -98,9 +100,10 @@ vllm_container_id=$(run_benchmark_container "CI_vLLM" "$latest_vLLM_docker")
 docker exec "CI_vLLM" bash -c "pip install gradio plotly evalscope"
 for model_name in "${models[@]}"; do
     # 3.1 Accuracy Test-evalscope
+    echo "--------------------------- vLLM Accuracy Test ------------------------------------"
     model_path="/data/huggingface/hub/${model_name}"
-    docker exec -d "CI_vLLM" bash -c "vllm serve $model_path --max_model_len 8192"
-    docker logs -f CI_vLLM &
+    docker exec -d "CI_vLLM" bash -c "vllm serve $model_path -tp 8 --max_model_len 8192 > /tmp/vllm_accuracy_test.log 2>&1 &"
+    docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
     log_pid=$!
 
     wait_time=0
@@ -121,19 +124,46 @@ for model_name in "${models[@]}"; do
     report_path=$(echo "$output" | grep "Dump report to:" | awk '{print $NF}')
     echo "The report file is located at: $report_path"
     docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
+    python3 RecordAccuracy.py --engine vLLM --model $model_name --acc-path $report_path
     echo "------------------------------------------------------------------------"
+
+    # 3.2 Performance Test
+    # 3.2.1 Old Configuration (no Ray)
+    ./standard_benchmark.sh --engine vLLM   --model-dir /data/huggingface/hub --out-dir Result/
+    
+    # 3.2.2 New Configuration (Ray)
+    # 3.2.3 Long Context (Ray)
 done
 
 
-# 3.2 Performance Test
-# 3.2.1 Old Configuration (no Ray)
-# 3.2.2 New Configuration (Ray)
-# 3.2.3 Long Context (Ray)
-
 # 4. SGLang benchmark
 sglang_container_id=$(run_benchmark_container "CI_SGLang" "$latest_SGLang_docker")
-# 4.1 Accuracy Test
-# 4.2 Performance Test
+for model_name in "${models[@]}"; do
+    # 4.1 Accuracy Test
+    echo "--------------------------- SGLang Accuracy Test ------------------------------------"
+    model_path="/data/huggingface/hub/${model_name}"
+    docker exec -d "CI_SGLang" bash -c \
+        "python -m sglang.launch_server --model-path $model_path --tp 8 \
+        --mem-fraction-static 0.7 --context-length 8192 > /tmp/sglang_accuracy_test.log 2>&1 &"
+    docker exec "CI_SGLang" tail -f /tmp/sglang_accuracy_test.log &
+    log_pid=$!
+
+    wait_time=0
+    until curl -s http://localhost:30000/v1/models | grep -q '"object"'; do
+        echo "Waiting for the SGLang server to start...$wait_time sec"
+        sleep 5
+        wait_time=$((wait_time + 5))
+    done
+    kill $log_pid
+    output=$(docker exec "CI_SGLang" bash -c \ "python3 -m sglang.test.few_shot_gsm8k --num-questions 200 --parallel 200")
+    acc=$(echo "$output" | grep "Accuracy:" | awk '{print $2}')
+    docker exec "CI_SGLang" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
+    python3 RecordAccuracy.py --engine SGLang --model $model_name --acc $acc
+    echo "------------------------------------------------------------------------"
+
+    # 4.2 Performance Test
+
+done
 
 # 5. Visualization
 
