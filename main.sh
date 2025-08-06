@@ -7,6 +7,10 @@ set -x
 
 # 1. Download models
 ci_dir=$(pwd)
+date=$(date +"%Y-%m-%d") #  +"%Y-%m-%d-%H%M%S"
+out_dir=$ci_dir/Result/$date
+mkdir -p $out_dir $out_dir/vLLM $out_dir/SGLang
+exit
 model_dir=$HOME/data/huggingface/hub
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -129,7 +133,7 @@ for model_name in "${models[@]}"; do
 
     # 3.2 Performance Test
     # 3.2.1 Old Configuration (no Ray)
-    ./standard_benchmark.sh --engine vLLM   --model-dir /data/huggingface/hub --out-dir Result/
+    ./benchmark.sh --engine vLLM   --model-dir /data/huggingface/hub --out-dir $out_dir
     
     # 3.2.2 New Configuration (Ray)
     # 3.2.3 Long Context (Ray)
