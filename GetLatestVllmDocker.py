@@ -38,7 +38,8 @@ if __name__ == "__main__":
     
     try:
         # run the docker pull command
-        subprocess.run(["docker", "pull", f"{DOCKER_REPO}:{latest_rc}"], check=True)
+        subprocess.run(["docker", "pull", f"{DOCKER_REPO}:{latest_rc}"], check=True,
+            stdout=sys.stdout, stderr=sys.stderr,)
         print(f"{DOCKER_REPO}:{latest_rc}")
     except subprocess.CalledProcessError as e:
         print(f"Docker pull failed with error code {e.returncode}:", file=sys.stderr)

@@ -45,7 +45,7 @@ if __name__ == "__main__":
     full_image_name = f"{DOCKER_REPO}:{latest_tag}"
 
     try:
-        subprocess.run(["docker", "pull", full_image_name], check=True, capture_output=True, text=True)
+        subprocess.run(["docker", "pull", full_image_name],  text=True)
         print(f"{full_image_name}")
     except subprocess.CalledProcessError as e:
         print(f"Docker pull failed with error code {e.returncode}:", file=sys.stderr)
