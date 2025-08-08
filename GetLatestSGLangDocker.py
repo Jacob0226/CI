@@ -5,13 +5,13 @@ from dateutil.parser import isoparse
 import subprocess
 
 # SGLang Docker repository URL
-DOCKER_REPO = "rocm/sgl-dev"
+DOCKER_REPO = "lmsysorg/sglang"
 PAGE_SIZE = 100
 URL = f"https://hub.docker.com/v2/repositories/{DOCKER_REPO}/tags?page_size={PAGE_SIZE}"
 
 def get_latest_mi30x_srt_tag():
     """
-    Fetches the latest SGLang Docker image tag with 'mi30x' and 'srt' substrings.
+    Fetches the latest SGLang Docker image tag with 'mi30x'.
     """
     try:
         response = requests.get(URL)
@@ -29,7 +29,7 @@ def get_latest_mi30x_srt_tag():
             "last_updated": isoparse(tag["last_updated"])
         }
         for tag in tags
-        if "mi30x" in tag["name"] and "srt" in tag["name"]
+        if "mi30x" in tag["name"]
     ]
 
     if not filtered_tags:
