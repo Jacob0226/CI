@@ -2,8 +2,8 @@
 set -x
 
 # Sample cmd:
-# ./standard_benchmark.sh --engine vLLM   --model-dir /data/huggingface/hub --out-dir Result/{Date}
-# ./standard_benchmark.sh --engine SGLang --model-dir /data/huggingface/hub --out-dir Result/{Date}
+# ./benchmark.sh --engine vLLM   --model-dir /data/huggingface/hub --out-dir Result/{Date}
+# ./benchmark.sh --engine SGLang --model-dir /data/huggingface/hub --out-dir Result/{Date}
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -62,6 +62,7 @@ export VLLM_RPC_TIMEOUT=200000 # default 10000 ms
 export VLLM_V1_USE_PREFILL_DECODE_ATTENTION=1
 export VLLM_USE_V1=1
 export VLLM_ROCM_USE_AITER=1
+export VLLM_ROCM_USE_AITER_RMSNORM=0
 # export TENSILE_STREAMK_DYNAMIC_GRID=6 # StreamK
 # streamK="streamK"
 
@@ -90,53 +91,60 @@ cpupower frequency-set -g $cpu_mode
 
 echo "The total number of CPU core on this system is: $total_cpu_cores"
 
-models_configs_vLLM=(
-    # engine ray model  dtype tp quant_type kv_type max_model_len batched_tokens sche llm_replica
-    "vLLM  true meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 4 1"  
-    "vLLM  true meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 4 1"  
-    "vLLM  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1450000  8192 0 1"
-    "vLLM false meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 4 1"  
-    "vLLM false meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 4 1"  
-    "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1450000  8192 0 1"
+models_configs_vLLM=( # Only v1 engine. v0 engine is deprecated.
+    # engine ray model  dtype tp quant_type kv_type max_model_len batched_tokens llm_replica
+    "vLLM  true meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 1"  
+    "vLLM  true meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 1"  
+    "vLLM  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
+    "vLLM false meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 1"  
+    "vLLM false meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 1"  
+    "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
+    "vLLM  false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 10000  8192 1"
 )
 
 models_configs_SGLang=(
     # model ray dtype tp max_model_len kv_type
     "SGLang  true meta-llama/Llama-3.1-8B-Instruct           float16 1 4096 auto"
     "SGLang  true meta-llama/Llama-3.3-70B-Instruct          float16 8 8192 auto"
-    "SGLang  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto"
+    # "SGLang  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # Need FA v3
     "SGLang false meta-llama/Llama-3.1-8B-Instruct           float16 1 4096 auto"
     "SGLang false meta-llama/Llama-3.3-70B-Instruct          float16 8 8192 auto"
-    "SGLang false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto"
+    # "SGLang false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # Need FA v3
 )
 
 TESTS_8B_70B=(
     # ilen olen concurrency num_prompts
-    "32 32 16 3000"
-    "32 32 64 3000"
-    "32 32 256 3000"
-    "128 128 16 3000"
-    "128 128 64 3000"
-    "128 128 256 3000"
-    "1024 64 16 3000"
-    "1024 64 64 3000"
-    "1024 64 256 3000"
-    "2048 128 16 1000"
-    "2048 128 64 1000"
-    "2048 128 256 1000"
+    # "32 32 16 3000"
+    # "32 32 64 3000"
+    # "32 32 256 3000"
+    # "128 128 16 3000"
+    # "128 128 64 3000"
+    # "128 128 256 3000"
+    # "1024 64 16 3000"
+    # "1024 64 64 3000"
+    # "1024 64 256 3000"
+    # "2048 128 16 1000"
+    # "2048 128 64 1000"
+    # "2048 128 256 1000"
+    
+    # Quick test
+    "32 32 256 300"
 )
 
 TESTS_Scout=(
     # ilen olen concurrency num_prompts
-    "    120000 128 4 8"
-    "    240000 128 4 8"
-    "    480000 128 4 8"
-    "    960000 128 4 8"
-    "   1400000 128 4 8"
+    # "    120000 128 4 8"
+    # "    240000 128 4 8"
+    # "    480000 128 4 8"
+    # "    960000 128 4 8"
+    # "   1400000 128 4 8"
     # "  2097152 1920000 128 4 8"
     # "  4194304 3840000 128 4 8"
     # "  8388608 7680000 128 4 8"
     # " 10485760 9600000 128 4 8"
+
+    # Quick test
+    "1024 32 256 300"
 )
 
 
@@ -144,11 +152,13 @@ TESTS_Scout=(
 accelerator_type="unknown"
 if command -v rocm-smi &>/dev/null; then
     gpu_info=$(rocm-smi --showproductname 2>/dev/null)
-    subsystem_id=$(echo "$gpu_info" | grep "Subsystem ID" | awk '{print $NF}' | head -n 1)
+    subsystem_id=$(echo "$gpu_info" | grep "Card Model" | awk '{print $NF}' | head -n 1)
     if [ "$subsystem_id" == "0x74a1" ]; then
         accelerator_type="AMD-Instinct-MI300X-OAM"
     elif [ "$subsystem_id" == "0x74a5" ]; then
         accelerator_type="AMD-Instinct-MI325X-OAM"
+    elif [ "$subsystem_id" == "0x74b9" ]; then
+        accelerator_type="AMD-Instinct-MI325X-VF"
     else
         accelerator_type="Unknown_AMD_Accelerator"
         echo "Warning: Could not determine accelerator type from rocm-smi output."
@@ -168,29 +178,22 @@ fi
 
 # Start benchmark
 if [[ "$engine" == "vLLM" ]]; then
-    models_configs=$models_configs_vLLM
+    models_configs=("${models_configs_vLLM[@]}")
 elif [[ "$engine" == "SGLang" ]]; then
-    models_configs=$models_configs_SGLang
+    models_configs=("${models_configs_SGLang[@]}")
 fi
 
-
+echo "models_configs=$models_configs"
 for config in "${models_configs[@]}"; do
     engine=$(echo "$config" | awk '{print $1}')
     if [[ "$engine" == "vLLM" ]]; then
-        IFS=' ' read -r _ ray_enable model_name dtype tp quant_type kv_type max_model_len batched_tokens sche llm_replica<<< "$config"
+        IFS=' ' read -r _ ray_enable model_name dtype tp quant_type kv_type max_model_len batched_tokens llm_replica<<< "$config"
     elif [[ "$engine" == "SGLang" ]]; then
         IFS=' ' read -r _ ray_enable model_name dtype tp max_model_len kv_type<<< "$config"   
     fi
     echo "llm_replica is $llm_replica"
     deployment_mode=$([[ "$ray_enable" == "true" ]] && echo "ray" || echo "standalone")
-
-
-    if  [ "$engine" == "vLLM" ]; then
-        vllm_version=$([[ "$sche" -eq 0 ]] && echo "v1" || echo "v0")
-        result_folder=$out_dir/${engine}/${vllm_version}_${deployment_mode}_${llm_replica}xTP${tp}/${model_name}
-    else # SGLang
-        result_folder=$out_dir/${engine}/${deployment_mode}_${llm_replica}xTP${tp}/${model_name}
-    fi
+    result_folder=$out_dir/${engine}_${deployment_mode}/${model_name/\//_}
     cpu_core_per_llm_replica=$((remaining_cpu_core / llm_replica))
     
     model_path="${model_dir}${model_name}"
@@ -199,7 +202,7 @@ for config in "${models_configs[@]}"; do
 
     if [[ "$ray_enable" == "true" ]]; then
         if [[ "$engine" == "vLLM" ]]; then
-            python SGLang_Integration.py \
+            python ray_engine.py \
                 --engine $engine \
                 --port $SERVER_PORT \
                 --cpu_core_per_llm_replica $cpu_core_per_llm_replica \
@@ -212,10 +215,9 @@ for config in "${models_configs[@]}"; do
                 --quant_type "$quant_type" \
                 --kv_type "$kv_type" \
                 --max_model_len "$max_model_len" \
-                --max_num_batched_tokens "$batched_tokens" \
-                --sche "$sche" &
+                --max_num_batched_tokens "$batched_tokens" &
         elif [[ "$engine" == "SGLang" ]]; then
-            python SGLang_Integration.py \
+            python ray_engine.py \
                 --engine $engine \
                 --port $SERVER_PORT \
                 --cpu_core_per_llm_replica $cpu_core_per_llm_replica \
@@ -234,8 +236,7 @@ for config in "${models_configs[@]}"; do
                 --dtype "$dtype" --gpu-memory-utilization 0.9 --no-enable-chunked-prefill \
                 --max-model-len "$max_model_len" --max-num-batched-tokens "$batched_tokens" \
                 --max-num-seqs 512 --max-seq-len-to-capture $max_model_len \
-                --kv-cache-dtype "$kv_type" --no-enable-prefix-caching --uvicorn-log-level warning \
-                $(if [ "$sche" -ne 0 ]; then echo "--num-scheduler-steps $sche"; fi) &
+                --kv-cache-dtype "$kv_type" --no-enable-prefix-caching --uvicorn-log-level warning & \
                 # --quantization "$quant_type"
         elif [[ "$engine" == "SGLang" ]]; then
             python -m sglang.launch_server --port $SERVER_PORT \
@@ -259,7 +260,7 @@ for config in "${models_configs[@]}"; do
         while true; do
             sleep 5
             set +x
-            if check_replicas_status "$api_url"; then
+            if check_replicas_status $api_url $engine; then
                 echo "All replicas are RUNNING."
                 set -x
                 break
@@ -288,6 +289,12 @@ for config in "${models_configs[@]}"; do
         specific_args=""
     fi
     $bench_cmd $common_args $specific_args        
+    
+    if [[ "$model_name" == "meta-llama/Llama-3.1-8B-Instruct" ]] || [[ "$model_name" == "meta-llama/Llama-3.3-70B-Instruct" ]]; then
+        TESTS=("${TESTS_8B_70B[@]}")
+    elif [[ "$model_name" == "meta-llama/Llama-4-Scout-17B-16E-Instruct" ]]; then
+        TESTS=("${TESTS_Scout[@]}")
+    fi
 
     for test in "${TESTS[@]}"; do
         IFS=' ' read -r ilen olen concurrency num_prompts <<< "$test"

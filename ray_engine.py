@@ -7,6 +7,7 @@ import argparse
 import time
 import logging
 import uvicorn
+import json
 
 def main():
     parser = argparse.ArgumentParser(description="Deploy and test LLM using Ray Serve")
@@ -23,7 +24,6 @@ def main():
     parser.add_argument("--kv_type", type=str, default="auto", help="KV cache data type")
     parser.add_argument("--max_model_len", type=int, help="Maximum model length", required=True)
     parser.add_argument("--max_num_batched_tokens", type=int, help="Maximum number of batched tokens", default=8192)
-    parser.add_argument("--sche", type=int, help="Number of scheduler steps", default=0)
     args = parser.parse_args()
     # Create LLMConfig object
 
@@ -50,14 +50,14 @@ def main():
             # Maximum batching
             "stream_batching_interval_ms": 50,
         },
-        accelerator_type=args.accelerator_type,
+        # accelerator_type=args.accelerator_type,
     )
-
+    from vllm.config import CompilationConfig
+    vllm_compilation_config = CompilationConfig(full_cuda_graph=False)
     if args.engine == "vLLM":
         server_config.engine_kwargs=dict(
             swap_space=16,
             tensor_parallel_size=args.tp,
-            **({"num_scheduler_steps": args.sche} if args.sche>0 else {}),
             dtype=args.dtype,
             gpu_memory_utilization=0.9,
             enable_chunked_prefill=False,
@@ -68,6 +68,7 @@ def main():
             kv_cache_dtype=args.kv_type,
             max_num_seqs=256,
             max_seq_len_to_capture=args.max_num_batched_tokens,
+            compilation_config=vllm_compilation_config,
             disable_log_requests=True,
         )
     elif args.engine == "SGLang":
@@ -81,6 +82,7 @@ def main():
             disable_radix_cache=True, # enable_prefix_caching=False,
             context_length=args.max_model_len, #max_model_len=8192,
             kv_cache_dtype=args.kv_type, 
+            attention_backend="aiter",
         )
 
     # Configure LLMRouter with explicit settings
@@ -97,7 +99,7 @@ def main():
 
     print(f"[DEBUG] server_config={server_config}")
     # Deploy the LLMServer. name_prefix must be "vLLM" to help parsing correctly in utils.sh
-    deployment = LLMServer.as_deployment(server_config.get_serve_options(name_prefix="vLLM:")).bind(server_config)
+    deployment = LLMServer.as_deployment(server_config.get_serve_options(name_prefix=f"{args.engine}:")).bind(server_config)
     llm_app = LLMRouter.as_deployment([router_config]).bind([deployment])
 
     # Run the serve deployment
