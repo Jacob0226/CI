@@ -75,7 +75,10 @@ echo "Latest vLLM docker=$latest_vLLM_docker"
 latest_SGLang_docker=$(python3 -u GetLatestSGLangDocker.py | tee /dev/tty | tail -n 1)
 echo "Latest SGLang docker=$latest_SGLang_docker"
 # ToDo: Record docker images to a list. Check if the images are already in the list, if so, skip benchmark.
-
+python3 RecordDockerName.py \
+    --json-file $out_json \
+    --vLLM $latest_vLLM_docker \
+    --SGLang $latest_SGLang_docker
 
 run_benchmark_container() {
     local container_name="$1"
@@ -128,7 +131,9 @@ docker exec "CI_vLLM" bash -c "
 for model_name in "${models[@]}"; do
     echo "--------------------------- vLLM Accuracy Test ------------------------------------"
     model_path="$container_model_dir/${model_name}"
-    docker exec -d "CI_vLLM" bash -c "vllm serve $model_path -tp 8 --max_model_len 8192 > /tmp/vllm_accuracy_test.log 2>&1 &"
+    docker exec -d "CI_vLLM" bash -c \
+        "vllm serve $model_path -tp 8 --max_model_len 8192 --uvicorn-log-level warning \
+        --compilation-config '{\"full_cuda_graph\": false}' > /tmp/vllm_accuracy_test.log 2>&1 &"
     docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
     log_pid=$!
 
@@ -148,10 +153,11 @@ for model_name in "${models[@]}"; do
             --api-key EMPTY \
             --eval-type service \
             --datasets gsm8k \
-            --limit 100 2>&1")
+            --limit 50 2>&1")
     report_path=$(echo "$output" | grep "Dump report to:" | awk '{print $NF}')
     echo "The report file is located at: $report_path"
     docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
+    pkill -9 -f VLLM
     sleep 10 # Wait for killing server
     python3 RecordAccuracy.py --engine vLLM --model $model_name --acc-path $report_path --out $out_json
     echo "------------------------------------------------------------------------"
@@ -167,6 +173,7 @@ docker exec "CI_vLLM" bash -c \
 sglang_container_id=$(run_benchmark_container "CI_SGLang" "$latest_SGLang_docker")
 # Dependencies of benchmark (After Ray+SGLang integration is merged, use pip install rather than installing from local branch)
 docker exec "CI_SGLang" bash -c "
+    pip install --upgrade openai && \
     export RAY_COMMIT=d3fd0d255c00755b4eb2e6e2cd5a8f764e6898aa && \
     pip install -r /home/jacchang/ray/python/requirements.txt && \
     pip install -U --no-deps \
@@ -181,9 +188,9 @@ for model_name in "${models[@]}"; do
     # 4.1 Accuracy Test
     echo "--------------------------- SGLang Accuracy Test ------------------------------------"
     model_path="$container_model_dir/${model_name}"
-    docker exec -d "CI_SGLang" bash -c \
-        "python -m sglang.launch_server --model-path $model_path --tp 8 \
-        --mem-fraction-static 0.7 --context-length 8192 > /tmp/sglang_accuracy_test.log 2>&1 &"
+   docker exec -d "CI_SGLang" bash -c \
+       "python -m sglang.launch_server --model-path $model_path --tp 8 \
+       --mem-fraction-static 0.7 --context-length 8192 --log-level warning > /tmp/sglang_accuracy_test.log 2>&1 &"
     docker exec "CI_SGLang" tail -f /tmp/sglang_accuracy_test.log &
     log_pid=$!
 
@@ -197,6 +204,7 @@ for model_name in "${models[@]}"; do
     output=$(docker exec "CI_SGLang" bash -c \ "python3 -m sglang.test.few_shot_gsm8k --num-questions 200 --parallel 200")
     acc=$(echo "$output" | grep "Accuracy:" | awk '{print $2}')
     docker exec "CI_SGLang" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
+    sleep 10 # Wait for killing server
     python3 RecordAccuracy.py --engine SGLang --model $model_name --acc $acc --out $out_json
     echo "------------------------------------------------------------------------"
     
@@ -206,9 +214,11 @@ done
 docker exec "CI_SGLang" bash -c \
     "./benchmark.sh --engine SGLang  --model-dir $container_model_dir --out-dir $out_dir "
 
+
+
 # # 5. Visualization
 
 
-
-docker stop CI_vLLM CI_SGLang
+echo "----------------------------- Finish ------------------------"
+# docker stop CI_vLLM CI_SGLang
 

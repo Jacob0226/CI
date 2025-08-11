@@ -23,7 +23,8 @@ def get_latest_rc_tag():
             "last_updated": isoparse(tag["last_updated"])
         }
         for tag in tags
-        if "rc" in tag["name"]
+        if "nightly_main" in tag["name"]
+        # if "rc" in tag["name"] and "base" not in tag["name"]
     ]
 
     if not rc_tags:
