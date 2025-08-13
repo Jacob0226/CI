@@ -29,7 +29,7 @@ def get_latest_mi30x_srt_tag():
             "last_updated": isoparse(tag["last_updated"])
         }
         for tag in tags
-        if "mi30x" in tag["name"]
+        if "mi30x" in tag["name"] and "rc" in tag["name"] and "srt" in tag["name"]
     ]
 
     if not filtered_tags:
