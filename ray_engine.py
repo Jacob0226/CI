@@ -83,6 +83,7 @@ def main():
             context_length=args.max_model_len, #max_model_len=8192,
             kv_cache_dtype=args.kv_type, 
             attention_backend="aiter",
+            log_level='warning',
         )
 
     # Configure LLMRouter with explicit settings

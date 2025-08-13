@@ -95,56 +95,57 @@ models_configs_vLLM=( # Only v1 engine. v0 engine is deprecated.
     # engine ray model  dtype tp quant_type kv_type max_model_len batched_tokens llm_replica
     "vLLM  true meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 1"  
     "vLLM  true meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 1"  
-    "vLLM  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
+    # "vLLM  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
     "vLLM false meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 1"  
     "vLLM false meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 1"  
-    "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
-    "vLLM  false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 10000  8192 1"
+    # "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
+    
+    # "vLLM  false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 10000  8192 1"
 )
 
 models_configs_SGLang=(
     # model ray dtype tp max_model_len kv_type
-    "SGLang  true meta-llama/Llama-3.1-8B-Instruct           float16 1 4096 auto"
-    "SGLang  true meta-llama/Llama-3.3-70B-Instruct          float16 8 8192 auto"
-    # "SGLang  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # Need FA v3
+    # "SGLang  true meta-llama/Llama-3.1-8B-Instruct           float16 1 4096 auto"    # Blocked by SGLang integrtion
+    # "SGLang  true meta-llama/Llama-3.3-70B-Instruct          float16 8 8192 auto"    # Blocked by SGLang integrtion
+    # "SGLang  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # ROCm SGLang hasn't support Llama4
     "SGLang false meta-llama/Llama-3.1-8B-Instruct           float16 1 4096 auto"
     "SGLang false meta-llama/Llama-3.3-70B-Instruct          float16 8 8192 auto"
-    # "SGLang false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # Need FA v3
+    # "SGLang false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 1450000 auto" # ROCm SGLang hasn't support Llama4
 )
 
 TESTS_8B_70B=(
     # ilen olen concurrency num_prompts
-    # "32 32 16 3000"
-    # "32 32 64 3000"
-    # "32 32 256 3000"
-    # "128 128 16 3000"
-    # "128 128 64 3000"
-    # "128 128 256 3000"
-    # "1024 64 16 3000"
-    # "1024 64 64 3000"
-    # "1024 64 256 3000"
-    # "2048 128 16 1000"
-    # "2048 128 64 1000"
-    # "2048 128 256 1000"
+    "32 32 16 3000"
+    "32 32 64 3000"
+    "32 32 256 3000"
+    "128 128 16 3000"
+    "128 128 64 3000"
+    "128 128 256 3000"
+    "1024 64 16 3000"
+    "1024 64 64 3000"
+    "1024 64 256 3000"
+    "2048 128 16 1000"
+    "2048 128 64 1000"
+    "2048 128 256 1000"
     
     # Quick test
-    "32 32 256 300"
+    # "32 32 256 300"
 )
 
 TESTS_Scout=(
     # ilen olen concurrency num_prompts
-    # "    120000 128 4 8"
-    # "    240000 128 4 8"
-    # "    480000 128 4 8"
-    # "    960000 128 4 8"
-    # "   1400000 128 4 8"
+    "    120000 128 4 8"
+    "    240000 128 4 8"
+    "    480000 128 4 8"
+    "    960000 128 4 8"
+    "   1400000 128 4 8"
     # "  2097152 1920000 128 4 8"
     # "  4194304 3840000 128 4 8"
     # "  8388608 7680000 128 4 8"
     # " 10485760 9600000 128 4 8"
 
     # Quick test
-    "1024 32 256 300"
+    # "1024 32 256 300"
 )
 
 
@@ -248,7 +249,8 @@ for config in "${models_configs[@]}"; do
                 --chunked-prefill-size -1 \
                 --disable-radix-cache  \
                 --context-length  $max_model_len \
-                --kv-cache-dtype  $kv_type &
+                --kv-cache-dtype  $kv_type \
+                --log-level "warning" &
         fi
     fi
 
@@ -282,7 +284,7 @@ for config in "${models_configs[@]}"; do
                     --dataset-name random --num-prompts 100 \
                     --random-input-len 128 --random-output-len 128 --random-range-ratio 0"
     if [[ "$engine" == "vLLM" ]]; then        
-        bench_cmd="python /app/vllm/benchmarks/benchmark_serving.py --backend openai "
+        bench_cmd="vllm bench serve --backend openai "
         specific_args="--percentile-metrics ttft,tpot,itl,e2el"
     elif [[ "$engine" == "SGLang" ]]; then
         bench_cmd="python -m sglang.bench_serving --backend sglang-oai "
@@ -322,6 +324,7 @@ for config in "${models_configs[@]}"; do
     # Kill vLLM/Ray engine after benchmarking
     echo "Stopping the server for model $model_name"
     ps -ef | grep '[p]ython' | awk '{print $2}' | xargs kill -9
+    pkill -9 -f VLLM
     sleep 10
 done
 
