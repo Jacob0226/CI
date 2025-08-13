@@ -41,7 +41,7 @@ models=(
 
 
 # Check if model exists
-huggingface-cli login --token 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
+huggingface-cli login --token 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
 EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
 download_pids=()
 for model_name in "${models[@]}"; do
@@ -159,7 +159,7 @@ for model_name in "${models[@]}"; do
     docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
     pkill -9 -f VLLM
     sleep 10 # Wait for killing server
-    python3 RecordAccuracy.py --engine vLLM --model $model_name --acc-path $report_path --out $out_json
+    python3 RecordAccuracy.py --engine vLLM --model $model_name --acc-path $report_path --out-json $out_json
     echo "------------------------------------------------------------------------"
 done
 
@@ -216,9 +216,10 @@ docker exec "CI_SGLang" bash -c \
 
 
 
-# # 5. Visualization
+# 5. Visualization
+python3 ParseBenchmark.py --json-file $out_json --folder $out_dir
 
 
 echo "----------------------------- Finish ------------------------"
-# docker stop CI_vLLM CI_SGLang
+docker stop CI_vLLM CI_SGLang
 
