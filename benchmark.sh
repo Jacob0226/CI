@@ -98,9 +98,7 @@ models_configs_vLLM=( # Only v1 engine. v0 engine is deprecated.
     # "vLLM  true meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
     "vLLM false meta-llama/Llama-3.1-8B-Instruct           float16 1 None auto    4096  8192 1"  
     "vLLM false meta-llama/Llama-3.3-70B-Instruct          float16 8 None auto    4096 16384 1"  
-    # "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"
-    
-    # "vLLM  false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 10000  8192 1"
+    # "vLLM false meta-llama/Llama-4-Scout-17B-16E-Instruct bfloat16 8 None auto 1000000  8192 1"    
 )
 
 models_configs_SGLang=(
@@ -237,6 +235,7 @@ for config in "${models_configs[@]}"; do
                 --dtype "$dtype" --gpu-memory-utilization 0.9 --no-enable-chunked-prefill \
                 --max-model-len "$max_model_len" --max-num-batched-tokens "$batched_tokens" \
                 --max-num-seqs 512 --max-seq-len-to-capture $max_model_len \
+                --compilation-config '{"full_cuda_graph": false}' \
                 --kv-cache-dtype "$kv_type" --no-enable-prefix-caching --uvicorn-log-level warning & \
                 # --quantization "$quant_type"
         elif [[ "$engine" == "SGLang" ]]; then
