@@ -41,14 +41,14 @@ models=(
 
 
 # Check if model exists
-huggingface-cli login --token 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
+hf auth login --token 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
 EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
 download_pids=()
 for model_name in "${models[@]}"; do
     model_path="${host_model_dir}/${model_name}"
     if [ ! -d "$model_path" ]; then
         echo "Model not found: $model_path. Downloading..."
-        huggingface-cli download "$model_name" \
+        hf download "$model_name" \
             --local-dir "$model_path" \
             --resume-download \
             --exclude "$EXCLUDE_PATTERN"  &
@@ -217,9 +217,12 @@ docker exec "CI_SGLang" bash -c \
 
 
 # 5. Visualization
+# 5.1 Parse benchmark logs and save metrics into json file
 python3 ParseBenchmark.py --json-file $out_json --folder $out_dir
-
+# 5.2 Check regression. Threshold: 3%
+# python3 CheckRegression.py --json-file $out_json --result-folder $ci_dir/Result --exclude-date $date
 
 echo "----------------------------- Finish ------------------------"
+rm *.jsonl 
 docker stop CI_vLLM CI_SGLang
 

@@ -76,7 +76,7 @@ def process_logs_in_folder(args):
         bench_type = engine_folder.split('/')[-1]
         data["Benchmark"][bench_type] = {}
         if os.path.exists(engine_folder) == False:
-            print(f"Benchmark folder {folder} deos not existed, skip...")
+            print(f"[{bench_type}] Benchmark folder {engine_folder} deos not existed, skip...")
             continue
         
         for model in models:
@@ -148,8 +148,8 @@ if __name__ == "__main__":
 
 '''
 python $HOME/CI/ParseBenchmark.py \
-    --json-file $HOME/CI/Result/2025-08-11/Result.json \
-    --folder $HOME/CI/Result/2025-08-11/ 
+    --json-file $HOME/CI/Result/2025-08-12/Result.json \
+    --folder $HOME/CI/Result/2025-08-12/ 
     
 
 '''
