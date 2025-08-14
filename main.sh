@@ -41,7 +41,7 @@ models=(
 
 
 # Check if model exists
-hf auth login --token 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
+# hf auth login 
 EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
 download_pids=()
 for model_name in "${models[@]}"; do
@@ -159,7 +159,8 @@ for model_name in "${models[@]}"; do
     docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
     pkill -9 -f VLLM
     sleep 10 # Wait for killing server
-    python3 RecordAccuracy.py --engine vLLM --model $model_name --acc-path $report_path --out-json $out_json
+    model_name_str=$(echo "$model_name" | sed 's/\//_/g') # "meta-llama/Llama-3.1-8B-Instruct" -> "meta-llama_Llama-3.1-8B-Instruct"
+    python3 RecordAccuracy.py --engine vLLM --model $model_name_str --acc-path $report_path --out-json $out_json
     echo "------------------------------------------------------------------------"
 done
 
@@ -205,7 +206,8 @@ for model_name in "${models[@]}"; do
     acc=$(echo "$output" | grep "Accuracy:" | awk '{print $2}')
     docker exec "CI_SGLang" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
     sleep 10 # Wait for killing server
-    python3 RecordAccuracy.py --engine SGLang --model $model_name --acc $acc --out $out_json
+    model_name_str=$(echo "$model_name" | sed 's/\//_/g') # "meta-llama/Llama-3.1-8B-Instruct" -> "meta-llama_Llama-3.1-8B-Instruct"
+    python3 RecordAccuracy.py --engine SGLang --model $model_name_str --acc $acc --out $out_json
     echo "------------------------------------------------------------------------"
     
 done
@@ -220,7 +222,7 @@ docker exec "CI_SGLang" bash -c \
 # 5.1 Parse benchmark logs and save metrics into json file
 python3 ParseBenchmark.py --json-file $out_json --folder $out_dir
 # 5.2 Check regression. Threshold: 3%
-# python3 CheckRegression.py --json-file $out_json --result-folder $ci_dir/Result --exclude-date $date
+python3 CheckRegression.py --json-file $out_json --result-folder $ci_dir/Result --exclude-date $date --threshold 3
 
 echo "----------------------------- Finish ------------------------"
 rm *.jsonl 

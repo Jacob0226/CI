@@ -4,6 +4,8 @@ import argparse
 import os
 import re
 import numpy as np
+from utils import bench_types, models, log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, GetMetrics
+
 
 def CheckFileName(log_file, target_log_files):
     for target_log_file in target_log_files:
@@ -11,62 +13,9 @@ def CheckFileName(log_file, target_log_files):
             return True, target_log_file
     return False, None
 
-def GetMetrics(folder):
-    if "SGLang" in folder:
-        metrics = [
-            "Output token throughput (tok/s)",
-            "Mean TTFT (ms)",
-            "Mean E2E Latency (ms)", # SGLang
-            "Mean ITL (ms)",  
-        ]
-    else: # "vLLM" in folder:
-        metrics = [
-            "Output token throughput (tok/s)",
-            "Mean TTFT (ms)",
-            "Mean E2EL (ms)",
-            "Mean ITL (ms)",  
-        ]
-    return metrics
-
 def process_logs_in_folder(args):
-    log_files_prefix_Llama_8B_70B = [
-        "i32_o32_c16_p3000",
-        "i32_o32_c64_p3000",
-        "i32_o32_c256_p3000",
-        "i128_o128_c16_p3000",
-        "i128_o128_c64_p3000",
-        "i128_o128_c256_p3000",
-        "i1024_o64_c16_p3000",
-        "i1024_o64_c64_p3000",
-        "i1024_o64_c256_p3000",
-        "i2048_o128_c16_p1000",
-        "i2048_o128_c64_p1000",
-        "i2048_o128_c256_p1000",
-    ]
-
-    log_file_prefix_Llama4_Scout= [
-        "i120000_o128_c4_p8",
-        "i240000_o128_c4_p8",
-        "i480000_o128_c4_p8",
-        "i960000_o128_c4_p8",
-        # "i1400000_o128_c4_p8",
-    ]
-
-
-    
     # folders under args.folder
-    engine_folders = [
-        os.path.join(args.folder, "vLLM_ray"),
-        os.path.join(args.folder, "vLLM_standalone"),
-        os.path.join(args.folder, "SGLang_ray"),
-        os.path.join(args.folder, "SGLang_standalone"),
-    ]
-
-    models = [
-        "meta-llama_Llama-3.1-8B-Instruct",
-        "meta-llama_Llama-3.3-70B-Instruct",
-        "meta-llama_Llama-4-Scout-17B-16E-Instruct",
-    ]
+    engine_folders = [os.path.join(args.folder, bt) for bt in bench_types]
     
     with open(args.json_file, "r") as f:
         data = json.load(f)
@@ -80,6 +29,7 @@ def process_logs_in_folder(args):
             continue
         
         for model in models:
+            data["Benchmark"][bench_type][model] = {}
             engine_model_folder = os.path.join(engine_folder, model)
             if os.path.exists(engine_model_folder) == False:
                 print(f"  Model folder {engine_model_folder} deos not existed, skip...")
@@ -114,14 +64,14 @@ def process_logs_in_folder(args):
             
             # Average
             for config_name, metric_values in results.items():
-                data["Benchmark"][bench_type][config_name]={}
+                data["Benchmark"][bench_type][model][config_name]={}
                 for metric in metrics:
                     value_list = metric_values[metric]
                     if len(value_list)==0:
                         average=0
                     else:
                         average = np.mean(value_list)
-                    data["Benchmark"][bench_type][config_name][metric]=average
+                    data["Benchmark"][bench_type][model][config_name][metric]=average
     
     with open(args.json_file, "w") as f:
         json.dump(data, f, indent=4)
@@ -147,7 +97,11 @@ if __name__ == "__main__":
     process_logs_in_folder(args)
 
 '''
-python $HOME/CI/ParseBenchmark.py \
+python3 $HOME/CI/ParseBenchmark.py \
+    --json-file $HOME/CI/Result/2025-08-13/Result.json \
+    --folder $HOME/CI/Result/2025-08-13/ 
+
+python3 $HOME/CI/ParseBenchmark.py \
     --json-file $HOME/CI/Result/2025-08-12/Result.json \
     --folder $HOME/CI/Result/2025-08-12/ 
     

@@ -81,11 +81,11 @@ if __name__ == "__main__":
 
 '''
 # vLLM
-python3 RecordAccuracy.py --engine vLLM --model meta-llama/Llama-3.1-8B-Instruct \
+python3 RecordAccuracy.py --engine vLLM --model meta-llama_Llama-3.1-8B-Instruct \
     --acc-path ./outputs/20250804_090128/reports/Llama-3.1-8B-Instruct/gsm8k.json \
     --out-json Result/2025-08-08/Result.json
 # SGLang
-python3 RecordAccuracy.py --engine SGLang --model meta-llama/Llama-3.1-8B-Instruct \
+python3 RecordAccuracy.py --engine SGLang --model meta-llama_Llama-3.1-8B-Instruct \
     --acc 0.999 --out-json Result/2025-08-08/Result.json
 
 
