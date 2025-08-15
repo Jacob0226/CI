@@ -41,7 +41,7 @@ models=(
 
 
 # Check if model exists
-# hf auth login 
+hf auth login 
 EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
 download_pids=()
 for model_name in "${models[@]}"; do
@@ -223,8 +223,11 @@ docker exec "CI_SGLang" bash -c \
 python3 ParseBenchmark.py --json-file $out_json --folder $out_dir
 # 5.2 Check regression. Threshold: 3%
 python3 CheckRegression.py --json-file $out_json --result-folder $ci_dir/Result --exclude-date $date --threshold 3
+# 5.3 Plot accuracy and performance figures 
+python3 SaveOverviewCSV.py --json-file $out_json
+# python3 Visualize.py --our-dir $out_dir
 
 echo "----------------------------- Finish ------------------------"
-rm *.jsonl 
+rm -f *.jsonl 
 docker stop CI_vLLM CI_SGLang
 

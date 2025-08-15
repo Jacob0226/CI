@@ -1,0 +1,28 @@
+Date,
+,
+Benchmark Type,vLLM_ray
+Metric,Output token throughput (tok/s)
+i120000_o128_c4_p8,
+i240000_o128_c4_p8,
+i480000_o128_c4_p8,
+i960000_o128_c4_p8,
+,
+Metric,Mean TTFT (ms)
+i120000_o128_c4_p8,
+i240000_o128_c4_p8,
+i480000_o128_c4_p8,
+i960000_o128_c4_p8,
+,
+Benchmark Type,vLLM_standalone
+Metric,Output token throughput (tok/s)
+i120000_o128_c4_p8,
+i240000_o128_c4_p8,
+i480000_o128_c4_p8,
+i960000_o128_c4_p8,
+,
+Metric,Mean TTFT (ms)
+i120000_o128_c4_p8,
+i240000_o128_c4_p8,
+i480000_o128_c4_p8,
+i960000_o128_c4_p8,
+
