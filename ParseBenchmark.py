@@ -82,9 +82,7 @@ def process_logs_in_folder(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Process JSON log files from a folder and create a CSV summary."
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument("--json-file", type=str, required=True, help="Path to the save the benchmark result.")
     parser.add_argument("--folder", type=str, default=None, help="Folder of the benchmark logs")
     args = parser.parse_args()

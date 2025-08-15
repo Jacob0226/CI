@@ -15,6 +15,7 @@ def parse_args():
 def main():
     """Main function to run the script logic."""
     args = parse_args()
+    date = args.json_file.split('/')[-2] # Result/2025-08-11/Result.json
 
     # Save docker name
     print(os.path.exists(args.json_file))
@@ -24,6 +25,7 @@ def main():
         with open(args.json_file, "r") as f:
             data = json.load(f)
 
+    data["Date"] = date
     data["vLLM Docker"] = args.vLLM
     data["SGLang Docker"] = args.SGLang
     with open(args.json_file, "w") as f:

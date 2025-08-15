@@ -4,9 +4,9 @@ import os
 import sys
 from datetime import datetime
 import numpy as np
-import logging
 from utils import bench_types, models, \
     log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, metric_mapping, GetMetrics
+import logging
 
 logger = logging.getLogger("check_regression_logger")
 logger.setLevel(logging.DEBUG)  
@@ -84,11 +84,7 @@ def CheckBenchmark(cur_bench: dict, pre_bench: dict, threshold):
     ttft_mean_Scout_pct = (0 if len(ttft_diff_Scout) == 0 else np.mean(ttft_diff_Scout)) * 100
     logger.debug(f"[Regression Test] Llama-Scout TPUT changes: {tput_mean_Scout_pct}%, threshold=-{threshold}%")
     logger.debug(f"[Regression Test] Llama-Scout TTFT changes: {ttft_mean_Scout_pct}%, threshold=-{threshold}%")
-                                
-
-
-
-                        
+                 
 
 
 def main(args):
@@ -104,7 +100,7 @@ def main(args):
     date_folders = []
     for f in folders:
         try:
-            if args.exclude_date in f or "2025-08-14" in f:
+            if args.exclude_date in f:
                 continue
             date_obj = datetime.strptime(f, "%Y-%m-%d")
             date_folders.append((date_obj, f))
@@ -127,9 +123,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Process JSON log files from a folder and create a CSV summary."
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument("--json-file", type=str, required=True, help="Path to the save the benchmark result.")
     parser.add_argument("--result-folder", type=str, required=True, help="The 'root' of the benchmark folder")
     parser.add_argument("--exclude-date", type=str, required=True, help="Exclude the current benchmark folder")
