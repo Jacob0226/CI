@@ -88,7 +88,7 @@ def Plot_Benchmark(df: pd.DataFrame, title: str, csv_row_mapping: dict, out_dir:
             "SGLang": ["SGLang_ray", "SGLang_standalone"],
         }
 
-
+    # Go through plot_combinations
     for engine, local_bench_types in plot_combinations.items():
         fig, axes = plt.subplots(plot_row, plot_col, figsize=(plot_col*6, plot_row*6))
         axes = axes.flatten()  
@@ -96,12 +96,14 @@ def Plot_Benchmark(df: pd.DataFrame, title: str, csv_row_mapping: dict, out_dir:
         fig.suptitle(bench_title, fontsize=20, y=1.0) 
 
         margin = 2000
+        # Go through benchmark configs
         for i in range(len(benchmark_labels)):
             # Get data
             ray_tput_data = None
             ray_ttft_data = None
             standalone_tput_data = None
             standalone_ttft_data = None
+            # Collect data
             for bench_type in local_bench_types:
                 if bench_type not in csv_row_mapping:
                     logger.warning(f"[{py_script}] Benchmark type '{bench_type}' not found in overview csv. Skipping.")
@@ -179,9 +181,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not os.path.exists(args.out_dir):
-        logger.error(f"[{py_script}] Error: Json file {args.out_dir} doesn't exist.")
-        logger.error(f"[{py_script}] Failed.")
-        exit()
+        os.makedirs(args.out_dir, exist_ok=True)
 
     main(args)
 
