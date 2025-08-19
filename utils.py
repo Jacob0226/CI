@@ -1,3 +1,36 @@
+# logger_setup.py
+import logging
+import sys
+import colorlog
+
+def setup_logger(name="default_logger", level=logging.DEBUG):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    if logger.hasHandlers():
+        return logger
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(level)
+
+    formatter = colorlog.ColoredFormatter(
+        "%(log_color)s%(levelname)-8s %(message)s %(reset)s",
+        log_colors={
+            'DEBUG':    'cyan',
+            'INFO':     'green',
+            'WARNING':  'yellow',
+            'ERROR':    'red',
+            'CRITICAL': 'red,bg_white',
+        },
+        secondary_log_colors={}
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    return logger
+
+
+
 bench_types = [
     "vLLM_ray",
     "vLLM_standalone",
@@ -66,7 +99,57 @@ overview_files = [
     "overview_perf_Scout.csv",
 ]
 
-row_mapping_acc = [
+csv_row_overview_Acc = { # draw plots
+    "vLLM-Evalscope":{ # Title
+        "meta-llama_Llama-3.1-8B-Instruct": 3,
+        "meta-llama_Llama-3.3-70B-Instruct": 4,
+        "meta-llama_Llama-4-Scout-17B-16E-Instruct": 5,
+    },
+    "SGLang-few_shot_gsm8k":{
+        "meta-llama_Llama-3.1-8B-Instruct": 8,
+        "meta-llama_Llama-3.3-70B-Instruct": 9,
+    }
+}
+
+csv_row_overview_8B_70B = { # draw plots
+    "vLLM_ray":{
+        "tput": [4, 15], # start row and end row
+        "ttft": [18, 29],
+    },
+    "vLLM_standalone":{
+        "tput": [33, 44],
+        "ttft": [47, 58],
+    },
+    "SGLang_ray":{
+        "tput": [62, 73],
+        "ttft": [76, 87],
+    },
+    "SGLang_standalone":{
+        "tput": [91, 102],
+        "ttft": [105, 116],
+    }
+}
+
+csv_row_overview_Scout = { # draw plots
+    "vLLM_ray":{
+        "tput": [4, 7], # start row and end row
+        "ttft": [10, 13],
+    },
+    "vLLM_standalone":{
+        "tput": [17, 20],
+        "ttft": [20, 23],
+    },
+    # "SGLang_ray":{   # ROCm SGLang doesn't support Llama4 yet
+    #     "tput": [],
+    #     "ttft": [],
+    # }
+    # "SGLang_standalone":{
+    #     "tput": [],
+    #     "ttft": [],
+    # }
+}
+
+row_mapping_acc = [ # map to Result.json
     # name, row, json_key_layer
     ["vLLM_meta-llama_Llama-3.1-8B-Instruct_Acc",          3, ["Accuracy", "vLLM",   "meta-llama_Llama-3.1-8B-Instruct"]],
     ["vLLM_meta-llama_Llama-3.3-70B-Instruct_Acc",         4, ["Accuracy", "vLLM",   "meta-llama_Llama-3.3-70B-Instruct"]],

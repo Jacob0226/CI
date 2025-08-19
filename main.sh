@@ -10,6 +10,7 @@ ci_dir=$(pwd)
 date=$(date +"%Y-%m-%d") #  +"%Y-%m-%d-%H%M%S"
 out_dir=$ci_dir/Result/$date
 out_json=$out_dir/Result.json
+out_figures_dir=$ci_dir/Result/Figures
 mkdir -p $out_dir
 host_model_dir=$HOME/data/huggingface/hub/
 container_model_dir=/data/huggingface/hub/
@@ -133,18 +134,21 @@ for model_name in "${models[@]}"; do
     model_path="$container_model_dir/${model_name}"
     docker exec -d "CI_vLLM" bash -c \
         "vllm serve $model_path -tp 8 --max_model_len 8192 --uvicorn-log-level warning \
-        --compilation-config '{\"full_cuda_graph\": false}' > /tmp/vllm_accuracy_test.log 2>&1 &"
-    docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
-    log_pid=$!
+        --compilation-config '{\"full_cuda_graph\": false}'"
+    # cmd 'tail' tends to result in 'HW Exception by GPU node-5 (Agent handle: 0x16f721e0) reason :GPU Hang'
+    # docker exec -d "CI_vLLM" bash -c \
+    #     "vllm serve $model_path -tp 8 --max_model_len 8192 --uvicorn-log-level warning \
+    #     --compilation-config '{\"full_cuda_graph\": false}' > /tmp/vllm_accuracy_test.log 2>&1 &"
+    # docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
+    # log_pid=$!
 
     wait_time=0
     until curl -s http://localhost:8000/v1/models | grep -q '"object"'; do
-        echo "Waiting for the vLLM server to start...$wait_time sec"
+        echo "Waiting for the vLLM server to start $model_name...$wait_time sec"
         sleep 5
         wait_time=$((wait_time + 5))
     done
-    kill $log_pid
-    curl http://localhost:8000/v1/models 
+    # kill $log_pid
 
     output=$(docker exec "CI_vLLM" bash -c \
         "evalscope eval \
@@ -186,12 +190,15 @@ docker exec "CI_SGLang" bash -c "
     sed -i '/signal.signal/d' /sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py
 "
 for model_name in "${models[@]}"; do
+    if [ "$model_name" = "meta-llama/Llama-4-Scout-17B-16E-Instruct" ]; then
+        continue
+    fi
     # 4.1 Accuracy Test
     echo "--------------------------- SGLang Accuracy Test ------------------------------------"
     model_path="$container_model_dir/${model_name}"
-   docker exec -d "CI_SGLang" bash -c \
+    docker exec -d "CI_SGLang" bash -c \
        "python -m sglang.launch_server --model-path $model_path --tp 8 \
-       --mem-fraction-static 0.7 --context-length 8192 --log-level warning > /tmp/sglang_accuracy_test.log 2>&1 &"
+       --mem-fraction-static 0.7 --context-length 8192 --log-level warning > /tmp/sglang_accuracy_test.log 2>&1"
     docker exec "CI_SGLang" tail -f /tmp/sglang_accuracy_test.log &
     log_pid=$!
 
@@ -225,7 +232,7 @@ python3 ParseBenchmark.py --json-file $out_json --folder $out_dir
 python3 CheckRegression.py --json-file $out_json --result-folder $ci_dir/Result --exclude-date $date --threshold 3
 # 5.3 Plot accuracy and performance figures 
 python3 SaveOverviewCSV.py --json-file $out_json
-# python3 Visualize.py --our-dir $out_dir
+python3 Visualize.py --out-dir Result/Figures
 
 echo "----------------------------- Finish ------------------------"
 rm -f *.jsonl 
