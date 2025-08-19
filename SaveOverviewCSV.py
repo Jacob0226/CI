@@ -3,18 +3,13 @@ import json
 import os
 from datetime import datetime
 import argparse
-from utils import bench_types, models, overview_files, row_mapping_acc, row_mapping_8B, row_mapping_70B, row_mapping_Scout
+from utils import setup_logger, bench_types, models, overview_files, row_mapping_acc, row_mapping_8B, row_mapping_70B, row_mapping_Scout
 import shutil
 import logging
 import sys
 
-logger = logging.getLogger("save_overview_logger")
-logger.setLevel(logging.DEBUG)  
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+py_script = os.path.basename(sys.argv[0])
+logger = setup_logger("save_overview_logger")
 
 def get_nested_value(data: dict, json_key_layer: list):
     current_level = data
@@ -32,7 +27,7 @@ def CheckDate(csv_lines: list, date_str: str, overview_file: str):
         if row and row[0] == "Date":
             try:
                 date_col_index = row.index(date_str)
-                logger.debug(f"[SaveOverviewCSV.py] {date_str} already in {overview_file}, overwrite it.")
+                logger.debug(f"[{py_script}] {date_str} already in {overview_file}, overwrite it.")
             except ValueError: # date_str doesn't exist in row
                 # Only save the newer data so checking the last date is older than current one.
                 if len(row) > 1 and row[-1] != "":
@@ -40,7 +35,7 @@ def CheckDate(csv_lines: list, date_str: str, overview_file: str):
                     latest_date = datetime.strptime(row[-1], "%Y-%m-%d")
                     new_date = datetime.strptime(date_str, "%Y-%m-%d")
                     if new_date < latest_date:
-                        logger.warning(f"[SaveOverviewCSV.py] The date '{date_str}' is older than the latest date '{latest_date_str}'. {overview_file} Aborting.")
+                        logger.warning(f"[{py_script}] The date '{date_str}' is older than the latest date '{latest_date_str}'. {overview_file} Aborting.")
                         return -1
 
                 csv_lines[i].append(date_str)
@@ -48,7 +43,7 @@ def CheckDate(csv_lines: list, date_str: str, overview_file: str):
             break  
 
     if date_col_index == -1:
-        logger.warning(f"Error: 'Date' row not found in the {overview_file}. Aborting.")
+        logger.error(f"[{py_script}] Error: 'Date' row not found in the {overview_file}. Aborting.")
         return -1
     return date_col_index
 
@@ -136,8 +131,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not os.path.exists(args.json_file):
-        print(f"Error: Json file {args.json_file} doesn't exist.")
-        print(f"SaveOverviewCSV.py failed.")
+        logger.error(f"[{py_script}] Error: Json file {args.json_file} doesn't exist.")
+        logger.error(f"[{py_script}] SaveOverviewCSV.py failed.")
         exit()
 
     main(args)
@@ -150,5 +145,5 @@ python $HOME/CI/SaveOverviewCSV.py --json-file $HOME/CI/Result/2025-08-11/Result
 
 python $HOME/CI/SaveOverviewCSV.py --json-file $HOME/CI/Result/2025-08-13/Result.json 
 
-python $HOME/CI/SaveOverviewCSV.py --json-file $HOME/CI/Result/2025-08-14/Result.json 
+python $HOME/CI/SaveOverviewCSV.py --json-file $HOME/CI/Result/2025-08-18/Result.json 
 '''

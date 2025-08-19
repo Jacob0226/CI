@@ -2,10 +2,14 @@ import json
 import csv
 import argparse
 import os
+import sys
 import re
 import numpy as np
-from utils import bench_types, models, log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, GetMetrics
+from utils import setup_logger, bench_types, models, \
+    log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, GetMetrics
 
+py_script = os.path.basename(sys.argv[0])
+logger = setup_logger("parse_benchmark_logger")
 
 def CheckFileName(log_file, target_log_files):
     for target_log_file in target_log_files:
@@ -25,14 +29,14 @@ def process_logs_in_folder(args):
         bench_type = engine_folder.split('/')[-1]
         data["Benchmark"][bench_type] = {}
         if os.path.exists(engine_folder) == False:
-            print(f"[{bench_type}] Benchmark folder {engine_folder} deos not existed, skip...")
+            logger.warning(f"[{py_script}] Benchmark folder {engine_folder} deos not existed, skip...")
             continue
         
         for model in models:
             data["Benchmark"][bench_type][model] = {}
             engine_model_folder = os.path.join(engine_folder, model)
             if os.path.exists(engine_model_folder) == False:
-                print(f"  Model folder {engine_model_folder} deos not existed, skip...")
+                logger.warning(f"[{py_script}] Model folder {engine_model_folder} deos not existed, skip...")
                 continue
             
             # Init empty 
@@ -60,7 +64,7 @@ def process_logs_in_folder(args):
                                         value = float(line.split()[-1]) # e.g., "Output token throughput (tok/s):         543.82  "
                                         results[target][metric].append(value)
                                     except (ValueError, IndexError) as e:
-                                        print(f"Skip this file {log_file} due to error: {e}")
+                                        logger.error(f"[ParseBenchmark.py] Skip this file {log_file} due to error: {e}")
             
             # Average
             for config_name, metric_values in results.items():
@@ -75,10 +79,7 @@ def process_logs_in_folder(args):
     
     with open(args.json_file, "w") as f:
         json.dump(data, f, indent=4)
-        print(f"Benchmark numbers are saved successfully to '{args.json_file}'.")
-
-    
-
+        logger.info(f"[{py_script}] Benchmark numbers are saved successfully to '{args.json_file}'.")
 
 
 if __name__ == "__main__":
@@ -88,8 +89,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not os.path.exists(args.json_file):
-        print(f"Error: Json file {args.json_file} doesn't exist.")
-        print(f"ParseBenchmark.py failed.")
+        logger.error(f"[ParseBenchmark.py] Error: Json file {args.json_file} doesn't exist.")
+        logger.error(f"[ParseBenchmark.py] ParseBenchmark.py failed.")
         exit()
 
     process_logs_in_folder(args)
@@ -103,5 +104,8 @@ python3 $HOME/CI/ParseBenchmark.py \
     --json-file $HOME/CI/Result/2025-08-12/Result.json \
     --folder $HOME/CI/Result/2025-08-12/ 
     
-
+python3 $HOME/CI/ParseBenchmark.py \
+    --json-file $HOME/CI/Result/2025-08-11/Result.json \
+    --folder $HOME/CI/Result/2025-08-11/ 
+    
 '''

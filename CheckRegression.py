@@ -3,18 +3,14 @@ import argparse
 import os
 import sys
 from datetime import datetime
+import colorlog
 import numpy as np
-from utils import bench_types, models, \
-    log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, metric_mapping, GetMetrics
+from utils import setup_logger, bench_types, models, \
+    log_files_prefix_Llama_8B_70B, log_file_prefix_Llama4_Scout, metric_mapping, GetMetrics 
 import logging
 
-logger = logging.getLogger("check_regression_logger")
-logger.setLevel(logging.DEBUG)  
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+py_script = os.path.basename(sys.argv[0])
+logger = setup_logger("check_regression_logger")
 
 def CheckAccuracy(cur_acc: dict, pre_acc: dict, threshold):
     engines = ["vLLM", "SGLang"]
@@ -25,9 +21,9 @@ def CheckAccuracy(cur_acc: dict, pre_acc: dict, threshold):
                 if model in cur_acc[engine] and model in pre_acc[engine]:
                     diff = (cur_acc[engine][model] - pre_acc[engine][model]) / pre_acc[engine][model]
                     if diff < - threshold:
-                        logger.warning(f"[{engine}] {model} Seeing a accuracy regression.")
+                        logger.warning(f"[{py_script}] {engine} {model} Seeing a accuracy regression.")
                 else:
-                    logger.warning(f"[{engine}] {model} accuracy in not in json file.")
+                    logger.warning(f"[{py_script}] {engine} {model} accuracy in not in json file.")
 
 def CheckBenchmark(cur_bench: dict, pre_bench: dict, threshold):
     tput_diff_8B_70B = []
@@ -38,7 +34,7 @@ def CheckBenchmark(cur_bench: dict, pre_bench: dict, threshold):
         for metric in metrics:
             if metric not in data:
                 return False
-            if data[metric] == 0:
+            if data[metric] == 0: # value 0 means this benchmark didn't finish successfully
                 return False
         return True
 
@@ -71,19 +67,15 @@ def CheckBenchmark(cur_bench: dict, pre_bench: dict, threshold):
                                 ttft_list.append(diff)
     
     # Validate regression
-    tput_diff_8B_70B = []
-    ttft_diff_8B_70B = []
-    tput_diff_Scout = []
-    ttft_diff_Scout = []
     tput_mean_8B_70B_pct = (0 if len(tput_diff_8B_70B) == 0 else np.mean(tput_diff_8B_70B)) * 100
     ttft_mean_8B_70B_pct = (0 if len(ttft_diff_8B_70B) == 0 else np.mean(ttft_diff_8B_70B)) * 100
-    logger.debug(f"[Regression Test] Llama-8B+70B TPUT changes: {tput_mean_8B_70B_pct}%, threshold=-{threshold}%")
-    logger.debug(f"[Regression Test] Llama-8B+70B TTFT changes: {ttft_mean_8B_70B_pct}%, threshold=-{threshold}%")
+    logger.debug(f"[{py_script}] Llama-8B+70B TPUT changes: {tput_mean_8B_70B_pct}%, threshold=-{threshold}%")
+    logger.debug(f"[{py_script}] Llama-8B+70B TTFT changes: {ttft_mean_8B_70B_pct}%, threshold=-{threshold}%")
 
     tput_mean_Scout_pct = (0 if len(tput_diff_Scout) == 0 else np.mean(tput_diff_Scout)) * 100
     ttft_mean_Scout_pct = (0 if len(ttft_diff_Scout) == 0 else np.mean(ttft_diff_Scout)) * 100
-    logger.debug(f"[Regression Test] Llama-Scout TPUT changes: {tput_mean_Scout_pct}%, threshold=-{threshold}%")
-    logger.debug(f"[Regression Test] Llama-Scout TTFT changes: {ttft_mean_Scout_pct}%, threshold=-{threshold}%")
+    logger.debug(f"[{py_script}] Llama-Scout TPUT changes: {tput_mean_Scout_pct}%, threshold=-{threshold}%")
+    logger.debug(f"[{py_script}] Llama-Scout TTFT changes: {ttft_mean_Scout_pct}%, threshold=-{threshold}%")
                  
 
 
@@ -112,6 +104,7 @@ def main(args):
     
     previous_folder = max(date_folders, key=lambda x: x[0])[1]
     previous_json = os.path.join(args.result_folder, previous_folder, "Result.json")
+    logger.debug(f"[{py_script}] Previous json: {previous_json}")
     if not os.path.exists(previous_json):
         print(f"Error: Directory '{previous_json}' not found.")
         exit()
@@ -139,8 +132,8 @@ if __name__ == "__main__":
 
 '''
 python $HOME/CI/CheckRegression.py \
-    --json-file $HOME/CI/Result/2025-08-13/Result.json \
+    --json-file $HOME/CI/Result/2025-08-18/Result.json \
     --result-folder $HOME/CI/Result/ \
-    --exclude-date 2025-08-13
+    --exclude-date 2025-08-18
 
 '''
