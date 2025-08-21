@@ -17,32 +17,6 @@ logger = setup_logger("save_overview_logger")
 START=0
 END=1
 
-def plot_metrics(data, title, ylabel, filename):
-    # 直接從 DataFrame 的索引中獲取配置列表
-    configs = data.index.tolist() 
-    fig, axes = plt.subplots(3, 4, figsize=(16, 10))
-    fig.suptitle(title, fontsize=16)
-
-    for i, config in enumerate(configs):
-        row, col = divmod(i, 4)
-        ax = axes[row, col]
-        
-        # 繪圖時直接使用 DataFrame 的數據
-        # .iloc[:, 1:] 應該調整為 .iloc[:, :]
-        # 因為 'Empty' column 已經被排除，並且我們只想繪製數值
-        values = data.iloc[i].astype(float).tolist() 
-        ax.plot(data.columns, values, marker='o') # 更改 x 軸為 DataFrame 的欄位名稱 (日期)
-        
-        ax.set_title(config)
-        ax.set_ylabel(ylabel)
-        ax.set_xlabel("Date")
-        ax.set_ylim(0, 8000)
-        ax.grid(True)
-
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    plt.savefig(filename, dpi=300)
-    plt.close()
-
 def Plot_Accuracy(df: pd.DataFrame, title, csv_row_mapping: dict, out_dir: str):
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     axes = axes.flatten()  
@@ -63,11 +37,13 @@ def Plot_Accuracy(df: pd.DataFrame, title, csv_row_mapping: dict, out_dir: str):
             ax.set_xlabel("Date")
             ax.set_ylim(0, 1)
             ax.grid(True)
+            ax.tick_params(axis='x', rotation=-45)
             plot_index += 1
     
     img_name = os.path.join(out_dir, title + ".jpg")
     logger.info(f"[{py_script}] Saving {img_name}.")
     axes[5].set_visible(False) # Hide figure 6 as it is empty
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(img_name, dpi=300)
     plt.close()
 
@@ -112,7 +88,6 @@ def Plot_Benchmark(df: pd.DataFrame, title: str, csv_row_mapping: dict, out_dir:
                 tput_rows = csv_row_mapping[bench_type]["tput"]
                 ttft_rows = csv_row_mapping[bench_type]["ttft"]
 
-
                 tput_values = df.iloc[tput_rows[START] + i, 2:].astype(float).tolist()
                 ttft_values = df.iloc[ttft_rows[START] + i, 2:].astype(float).tolist()
                 
@@ -146,6 +121,7 @@ def Plot_Benchmark(df: pd.DataFrame, title: str, csv_row_mapping: dict, out_dir:
             ax.grid(True)
             ax.tick_params(axis='y')
             ax_ttft.tick_params(axis='y')
+            ax.tick_params(axis='x', rotation=-45)
             
             # Create a combined legend for both lines on the subplot
             lines_tput, labels_tput = ax.get_legend_handles_labels()

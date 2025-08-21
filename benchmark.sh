@@ -283,10 +283,10 @@ for config in "${models_configs[@]}"; do
                     --dataset-name random --num-prompts 100 \
                     --random-input-len 128 --random-output-len 128 --random-range-ratio 0"
     if [[ "$engine" == "vLLM" ]]; then        
-        bench_cmd="vllm bench serve --backend openai "
+        bench_cmd="vllm bench serve --backend openai --random-range-ratio 0 --ignore-eos" 
         specific_args="--percentile-metrics ttft,tpot,itl,e2el"
     elif [[ "$engine" == "SGLang" ]]; then
-        bench_cmd="python -m sglang.bench_serving --backend sglang-oai "
+        bench_cmd="python -m sglang.bench_serving --backend sglang-oai --random-range-ratio 1"
         specific_args=""
     fi
     $bench_cmd $common_args $specific_args        
@@ -313,7 +313,6 @@ for config in "${models_configs[@]}"; do
                 --num-prompts $num_prompts \
                 --random-input-len "$ilen" \
                 --random-output-len "$olen" \
-                --random-range-ratio 0 \
                 --max-concurrency "$concurrency" \
                 $specific_args \
                 2>&1 | tee "${benchmark_file}"
