@@ -231,7 +231,7 @@ for config in "${models_configs[@]}"; do
     elif [[ "$ray_enable" == "false" ]]; then # It was used to compare with ray+vllm
         if [[ "$engine" == "vLLM" ]]; then
             vllm serve ${model_path} --swap-space 16 --disable-log-requests --port $SERVER_PORT \
-                --tensor-parallel-size $tp --distributed-executor-backend ray \
+                --tensor-parallel-size $tp --distributed-executor-backend mp \
                 --dtype "$dtype" --gpu-memory-utilization 0.9 --no-enable-chunked-prefill \
                 --max-model-len "$max_model_len" --max-num-batched-tokens "$batched_tokens" \
                 --max-num-seqs 512 --max-seq-len-to-capture $max_model_len \

@@ -132,15 +132,13 @@ docker exec "CI_vLLM" bash -c "
 for model_name in "${models[@]}"; do
     echo "--------------------------- vLLM Accuracy Test ------------------------------------"
     model_path="$container_model_dir/${model_name}"
+    # "--distributed-executor-backend ray"  tends to result in 'HW Exception by GPU node-5 (Agent handle: 0x16f721e0) reason :GPU Hang'
     docker exec -d "CI_vLLM" bash -c \
         "vllm serve $model_path -tp 8 --max_model_len 8192 --uvicorn-log-level warning \
-        --compilation-config '{\"full_cuda_graph\": false}'"
-    # cmd 'tail' tends to result in 'HW Exception by GPU node-5 (Agent handle: 0x16f721e0) reason :GPU Hang'
-    # docker exec -d "CI_vLLM" bash -c \
-    #     "vllm serve $model_path -tp 8 --max_model_len 8192 --uvicorn-log-level warning \
-    #     --compilation-config '{\"full_cuda_graph\": false}' > /tmp/vllm_accuracy_test.log 2>&1 &"
-    # docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
-    # log_pid=$!
+        --distributed-executor-backend mp \
+        --compilation-config '{\"full_cuda_graph\": false}' > /tmp/vllm_accuracy_test.log 2>&1 "
+    docker exec "CI_vLLM" tail -f /tmp/vllm_accuracy_test.log &
+    log_pid=$!
 
     wait_time=0
     until curl -s http://localhost:8000/v1/models | grep -q '"object"'; do
@@ -148,7 +146,7 @@ for model_name in "${models[@]}"; do
         sleep 5
         wait_time=$((wait_time + 5))
     done
-    # kill $log_pid
+    kill $log_pid
 
     output=$(docker exec "CI_vLLM" bash -c \
         "evalscope eval \
