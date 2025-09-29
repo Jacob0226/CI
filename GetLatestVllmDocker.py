@@ -17,15 +17,19 @@ def get_latest_rc_tag():
         sys.exit(1)
 
     tags = response.json().get("results", [])
-    rc_tags = [
-        {
-            "name": tag["name"],
-            "last_updated": isoparse(tag["last_updated"])
-        }
-        for tag in tags
-        # if "nightly_main" in tag["name"]
-        if "rc" in tag["name"] and "base" not in tag["name"]
-    ]
+    rc_tags = []
+    for tag in tags:
+        if "base" not in tag["name"]: # condition 1
+            parts = tag["name"].split('_')
+            for part in parts: # condition 2
+                if part.startswith('rc'):
+                    rc_tags.append(
+                        {
+                            "name": tag["name"],
+                            "last_updated": isoparse(tag["last_updated"])
+                        }
+                    )
+    
 
     if not rc_tags:
         print("No 'rc' tags found.")
