@@ -67,9 +67,9 @@ def main():
             quantization=None if args.quant_type == 'None' else args.quant_type,
             kv_cache_dtype=args.kv_type,
             max_num_seqs=256,
-            max_seq_len_to_capture=args.max_num_batched_tokens,
             compilation_config=vllm_compilation_config,
-            disable_log_requests=True,
+            # max_seq_len_to_capture=args.max_num_batched_tokens, # Deprecated in vLLM v 0.11
+            # disable_log_requests=True, # Deprecated in vLLM v 0.11
         )
     elif args.engine == "SGLang":
         server_config.engine_kwargs=dict( 

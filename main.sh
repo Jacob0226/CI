@@ -4,6 +4,7 @@ set -x
 # Sample cmd:
 # ./main.sh --model-dir $HOME/data/huggingface/hub
 
+pip3 install -r requirement.txt
 
 # 1. Download models
 ci_dir=$(pwd)
@@ -42,7 +43,7 @@ models=(
 
 
 # Check if model exists
-hf auth login 
+hf auth login --token #Your_Token
 EXCLUDE_PATTERN="original/*" # Llama 8B & 70B has the folder 'original' storing the duplicate checkpoint so we ignore it
 download_pids=()
 for model_name in "${models[@]}"; do
@@ -104,6 +105,8 @@ run_benchmark_container() {
         "$docker_image"
 }
 
+pip install -r requirement.txt
+
 
 # 3. vLLM benchmark
 vllm_container_id=$(run_benchmark_container "CI_vLLM" "$latest_vLLM_docker")
@@ -117,16 +120,6 @@ docker exec "CI_vLLM" bash -c "
     pip install --upgrade ray[serve,llm] --no-deps
 "
 
-docker exec "CI_vLLM" bash -c "
-    pip uninstall -y aiter && \
-    mkdir -p /app && \
-    cd /app && \
-    git clone --recursive https://github.com/ROCm/aiter.git && \
-    cd aiter && \
-    git submodule sync && \
-    git submodule update --init --recursive && \
-    python3 setup.py develop
-"
 
 # 3.1 Accuracy Test-evalscope
 for model_name in "${models[@]}"; do
@@ -153,13 +146,13 @@ for model_name in "${models[@]}"; do
             --model $model_path  \
             --api-url http://localhost:8000/v1 \
             --api-key EMPTY \
-            --eval-type service \
+            --eval-type openai_api \
             --datasets gsm8k \
             --limit 50 2>&1")
     report_path=$(echo "$output" | grep "Dump report to:" | awk '{print $NF}')
     echo "The report file is located at: $report_path"
     docker exec "CI_vLLM" bash -c "ps -ef | grep '[p]ython' | awk '{print \$2}' | xargs kill -9 && echo 'Kill server...'"
-    pkill -9 -f VLLM
+    docker exec "CI_vLLM" bash -c "pkill -9 -f VLLM"
     sleep 10 # Wait for killing server
     model_name_str=$(echo "$model_name" | sed 's/\//_/g') # "meta-llama/Llama-3.1-8B-Instruct" -> "meta-llama_Llama-3.1-8B-Instruct"
     python3 RecordAccuracy.py --engine vLLM --model $model_name_str --acc-path $report_path --out-json $out_json
@@ -174,24 +167,18 @@ docker exec "CI_vLLM" bash -c \
 
 # 4. SGLang benchmark
 sglang_container_id=$(run_benchmark_container "CI_SGLang" "$latest_SGLang_docker")
-# Dependencies of benchmark (After Ray+SGLang integration is merged, use pip install rather than installing from local branch)
-docker exec "CI_SGLang" bash -c "
-    pip install --upgrade openai && \
-    export RAY_COMMIT=d3fd0d255c00755b4eb2e6e2cd5a8f764e6898aa && \
-    pip install -r /home/jacchang/ray/python/requirements.txt && \
-    pip install -U --no-deps \
-        \"ray[serve,llm] @ https://s3-us-west-2.amazonaws.com/ray-wheels/master/\$RAY_COMMIT/ray-3.0.0.dev0-cp312-cp312-manylinux2014_x86_64.whl\" && \
-    python /home/jacchang/ray/python/ray/setup-dev.py -y --skip dashboard
-"
+
 # Delete sglang code signal.signal...
 docker exec "CI_SGLang" bash -c "
     sed -i '/signal.signal/d' /sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py
 "
+
+# 4.1 Accuracy Test
 for model_name in "${models[@]}"; do
     if [ "$model_name" = "meta-llama/Llama-4-Scout-17B-16E-Instruct" ]; then
         continue
     fi
-    # 4.1 Accuracy Test
+    
     echo "--------------------------- SGLang Accuracy Test ------------------------------------"
     model_path="$container_model_dir/${model_name}"
     docker exec -d "CI_SGLang" bash -c \
@@ -213,11 +200,10 @@ for model_name in "${models[@]}"; do
     sleep 10 # Wait for killing server
     model_name_str=$(echo "$model_name" | sed 's/\//_/g') # "meta-llama/Llama-3.1-8B-Instruct" -> "meta-llama_Llama-3.1-8B-Instruct"
     python3 RecordAccuracy.py --engine SGLang --model $model_name_str --acc $acc --out $out_json
-    echo "------------------------------------------------------------------------"
-    
+    echo "------------------------------------------------------------------------" 
 done
 
-4.2 Performance Test
+# 4.2 Performance Test
 docker exec "CI_SGLang" bash -c \
     "./benchmark.sh --engine SGLang  --model-dir $container_model_dir --out-dir $out_dir "
 

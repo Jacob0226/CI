@@ -234,10 +234,11 @@ for config in "${models_configs[@]}"; do
                 --tensor-parallel-size $tp --distributed-executor-backend mp \
                 --dtype "$dtype" --gpu-memory-utilization 0.9 --no-enable-chunked-prefill \
                 --max-model-len "$max_model_len" --max-num-batched-tokens "$batched_tokens" \
-                --max-num-seqs 512 --max-seq-len-to-capture $max_model_len \
+                --max-num-seqs 512  \
                 --compilation-config '{"full_cuda_graph": false}' \
-                --kv-cache-dtype "$kv_type" --no-enable-prefix-caching --uvicorn-log-level warning & \
+                --kv-cache-dtype "$kv_type" --no-enable-prefix-caching --uvicorn-log-level warning & 
                 # --quantization "$quant_type"
+                # --max-seq-len-to-capture $max_model_len # Deprecated in vLLM 0.11
         elif [[ "$engine" == "SGLang" ]]; then
             python -m sglang.launch_server --port $SERVER_PORT \
                 --model-path ${model_path} \

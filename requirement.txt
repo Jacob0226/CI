@@ -1,6 +1,5 @@
 python-dateutil
-huggingface_hub[cli]
-shutil
+huggingface_hub
 argparse
 pandas
 matplotlib
