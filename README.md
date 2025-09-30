@@ -23,7 +23,7 @@ Clone this repo and run the following cmd. The whole CI test may take around 3hr
 ./main.sh
 ```
 
-# Known Issue
+## Known Issue
 *  We currently support benchmarking **vLLM + Ray**. Support for **SGLang + Ray** is still in progress, with the AMD team contributing to the SGLang integration into Ray.  
 * **Ray overhead:** See the example in the figure below. The orange and blue solid lines represent vLLM standalone and vLLM + Ray, respectively, showing a clear performance gap between running with and without Ray.  
   This issue is not related to ROCm GPUs. The Ray community is aware of the problem and is working to reduce the overhead.
