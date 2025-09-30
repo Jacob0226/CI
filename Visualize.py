@@ -109,9 +109,9 @@ def Plot_Benchmark(df: pd.DataFrame, title: str, csv_row_mapping: dict, out_dir:
 
             # Set titles and labels
             tput_max = max(ray_tput_data + standalone_tput_data) + margin
-            tput_min = max(-100, min(ray_tput_data + standalone_tput_data) - margin)
+            tput_min = 0 # max(-100, min(ray_tput_data + standalone_tput_data) - margin)
             ttft_max = max(ray_ttft_data + standalone_ttft_data) + margin
-            ttft_min = max(-100, min(ray_ttft_data + standalone_ttft_data) - margin)
+            ttft_min = 0 # max(-100, min(ray_ttft_data + standalone_ttft_data) - margin)
             ax.set_title(benchmark_labels[i], fontsize=12)
             ax.set_xlabel("Date")
             ax.set_ylabel("Throughput (tok/s)")
